@@ -41,6 +41,12 @@ def main() -> None:
         print(list_devices())
         return
 
+    if sys.platform == "win32":
+        try:  # initialise l'audio Windows (COM) sur le thread principal, avant tout autre thread
+            import soundcard  # noqa: F401
+        except Exception as exc:
+            print(f"Avertissement audio : {exc}")
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s : %(message)s")
     settings = load_settings()
     port = args.port or settings.port

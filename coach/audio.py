@@ -167,6 +167,14 @@ class AudioSource(threading.Thread):
         self.stop_event.set()
 
     def run(self) -> None:
+        try:
+            # soundcard initialise COM lui-même au 1er import et échoue si COM est déjà
+            # initialisé dans ce thread (erreur 0x100000001) : on l'importe AVANT _com_init.
+            import soundcard  # noqa: F401
+        except Exception as exc:
+            self.error = f"Import soundcard : {exc}"
+            log.exception("Import soundcard impossible")
+            return
         _com_init()
         try:
             device = self.device_getter()
