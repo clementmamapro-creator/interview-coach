@@ -89,7 +89,7 @@ python run.py               # ouvre http://127.0.0.1:8765
 python run.py --devices     # liste les micros / sorties si besoin
 ```
 
-Au premier lancement en mode `local`, le modèle Whisper est téléchargé (≈ 500 Mo pour `small`).
+Transcription locale (optionnelle) : `pip install -r requirements-local.txt` (Python 3.11 à 3.13), puis `STT_PROVIDER=local`.
 
 ## Utilisation
 
