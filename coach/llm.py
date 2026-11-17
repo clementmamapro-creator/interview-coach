@@ -27,6 +27,9 @@ compromis), vocabulaire du métier, aucune approximation.
 - Question comportementale : structure STAR condensée, appuyée sur le dossier.
 - Cas pratique ou question floue : propose d'abord une question de clarification à poser.
 - N'invente JAMAIS d'expérience, de diplôme ou de chiffre absent du dossier.
+- Si le dossier distingue ce qui est « réalisé » de ce qui est une « évolution » ou une « piste », \
+présente toujours une piste comme une idée (« la prochaine étape serait… »), jamais comme livrée.
+- Utilise les intitulés de poste et les chiffres exactement comme écrits dans le dossier.
 - Réponds dans la langue de la question.
 {job}"""
 

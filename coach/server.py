@@ -1,7 +1,9 @@
 """Serveur local FastAPI + WebSocket qui pilote la session et sert l'interface."""
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -62,7 +64,33 @@ def create_app(settings: Optional[Settings] = None, engine=None, transcriber_fac
             return build_transcriber(settings)
 
     session = SessionManager(settings, engine, hub.emit, transcriber_factory)
-    app = FastAPI(title="Interview Coach")
+    notion_state = {"status": "désactivé", "documents": 0}
+
+    async def load_notion() -> None:
+        roots = [r.strip() for r in settings.notion_pages.split(",") if r.strip()]
+        if not (settings.notion_token and roots):
+            return
+        from .notion_source import load_from_notion
+
+        notion_state["status"] = "chargement…"
+        await hub.emit({"type": "status", "text": "Import du dossier depuis Notion…"})
+        try:
+            docs = await asyncio.to_thread(load_from_notion, settings.notion_token, roots)
+            kb.add_documents(docs)
+            notion_state.update(status="ok", documents=len(docs))
+            await hub.emit({"type": "knowledge", **kb.summary()})
+            await hub.emit({"type": "status", "text": f"Notion : {len(docs)} page(s) importée(s)"})
+        except Exception as exc:
+            notion_state["status"] = f"erreur : {exc}"
+            await hub.emit({"type": "error", "text": f"Notion : {exc}"})
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        task = asyncio.create_task(load_notion())
+        yield
+        task.cancel()
+
+    app = FastAPI(title="Interview Coach", lifespan=lifespan)
     app.state.session, app.state.kb, app.state.hub = session, kb, hub
 
     def guard():
@@ -78,6 +106,7 @@ def create_app(settings: Optional[Settings] = None, engine=None, transcriber_fac
         return {
             "listening": session.listening,
             "knowledge": kb.summary(),
+            "notion": notion_state,
             "error": startup_error,
             "live_model": settings.live_model,
             "stt": settings.stt_provider,
@@ -142,6 +171,7 @@ def create_app(settings: Optional[Settings] = None, engine=None, transcriber_fac
     @app.post("/api/knowledge/reload")
     async def reload_kb():
         kb.load(settings.knowledge_dir)
+        await load_notion()
         return kb.summary()
 
     @app.post("/api/knowledge/upload")

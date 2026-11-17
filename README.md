@@ -15,6 +15,7 @@ Inspiré de l'architecture de [Natively](https://github.com/BrdgAI/Natively), r�
 | ✍️ **Transcription** | `faster-whisper` en local (gratuit, privé) ou Groq Whisper large-v3-turbo (≈ 300 ms). Filtre anti-hallucinations Whisper. |
 | ❓ **Détection de questions** | Heuristiques FR/EN + déclenchement manuel (`Ctrl+Entrée`). Une nouvelle question annule la suggestion en cours. |
 | 🧠 **Claude en streaming** | Réponse structurée « À dire / Points clés / Exemple », lisible en 5 secondes. Dossier candidat en **prompt caching**. |
+| 🗂️ **Import Notion** | Le dossier candidat est lu directement depuis vos pages Notion (ex. « Mon CV décortiqué » et ses sous-pages) : aucun fichier local. |
 | 📚 **RAG intégré** | Petit dossier → injecté en entier (mis en cache). Gros dossier → recherche BM25 (sans API d'embeddings). |
 | 🔁 **Anti-écho** | Si le micro capte la voix de l'interlocuteur sortant des haut-parleurs, le doublon est ignoré. |
 | 🎤 **Mode simulation** | Claude joue un recruteur technique exigeant, à partir de l'offre que vous collez. |
@@ -42,6 +43,7 @@ coach/
 ├── stt.py        transcription (local / Groq) + nettoyage
 ├── detector.py   détection de questions, anti-écho
 ├── knowledge.py  chargement des documents, découpage, BM25
+├── notion_source.py  import du dossier depuis Notion (API officielle)
 ├── llm.py        prompts et appels Claude (streaming, simulation, rapport)
 ├── session.py    orchestration temps réel et métriques
 ├── server.py     API FastAPI + WebSocket
@@ -62,7 +64,16 @@ copy .env.example .env
 notepad .env          # collez votre ANTHROPIC_API_KEY
 ```
 
-Déposez votre CV et vos fiches projets dans `knowledge/`, puis :
+### Brancher votre dossier Notion (recommandé)
+
+1. Allez sur [notion.so/profile/integrations](https://www.notion.so/profile/integrations) → **Nouvelle intégration** (type interne, lecture seule suffit) → copiez le token.
+2. Dans Notion, ouvrez la page racine (ex. « Mon CV décortiqué ») → **•••** → **Connexions** → ajoutez l'intégration. Les sous-pages sont incluses automatiquement.
+3. Dans `.env` : `NOTION_TOKEN=…` et `NOTION_PAGES=<URL de la page>` (plusieurs pages séparées par des virgules).
+
+L'import se fait au démarrage (environ 30 s pour une dizaine de fiches, limite de débit Notion) et via « Recharger ».
+Alternative : déposer des fichiers `.md`, `.txt` ou `.pdf` dans `knowledge/`.
+
+Puis :
 
 ```powershell
 python run.py               # ouvre http://127.0.0.1:8765
@@ -80,6 +91,10 @@ Au premier lancement en mode `local`, le modèle Whisper est téléchargé (≈ 
 5. « 📝 Rapport de session » : analyse complète, enregistrée dans `sessions/`.
 
 🎧 Utilisez un casque : le micro ne capte alors que vous.
+
+**Tester avec un ami** : il doit vous appeler sur le PC (Teams, Meet, Discord, WhatsApp Web). Sa voix sort du PC et
+est captée comme « Interlocuteur ». S'il est dans la même pièce, le micro capte vos deux voix comme « Moi » et aucune
+suggestion ne se déclenche.
 
 ## Tests
 

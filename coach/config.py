@@ -53,6 +53,10 @@ class Settings:
     max_context_chars: int = 60000             # au-delà, on passe en recherche RAG (BM25)
     rag_top_k: int = 5
 
+    # --- Notion (dossier candidat sans fichier local) ---
+    notion_token: str = ""
+    notion_pages: str = ""                     # URL(s) ou ID(s) de pages racines, séparés par des virgules
+
     # --- Chemins / serveur ---
     knowledge_dir: Path = ROOT / "knowledge"
     sessions_dir: Path = ROOT / "sessions"
@@ -80,5 +84,7 @@ def load_settings() -> Settings:
         auto_suggest_all=_bool("AUTO_SUGGEST_ALL", Settings.auto_suggest_all),
         max_context_chars=_int("MAX_CONTEXT_CHARS", Settings.max_context_chars),
         rag_top_k=_int("RAG_TOP_K", Settings.rag_top_k),
+        notion_token=os.getenv("NOTION_TOKEN", ""),
+        notion_pages=os.getenv("NOTION_PAGES", ""),
         port=_int("PORT", Settings.port),
     )

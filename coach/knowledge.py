@@ -90,6 +90,10 @@ class KnowledgeBase:
         self.documents[name] = text
         self.index()
 
+    def add_documents(self, docs: dict[str, str]) -> None:
+        self.documents.update(docs)
+        self.index()
+
     def index(self) -> None:
         self.chunks = [c for name, text in self.documents.items() for c in chunk_text(text, name)]
         self._tf = [Counter(tokenize(c.text)) for c in self.chunks]

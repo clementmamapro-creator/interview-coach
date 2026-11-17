@@ -157,6 +157,7 @@ function connect() {
         if (e.metrics && e.metrics.first_token_ms != null)
           $("metrics").textContent = `Latence moyenne : 1er mot ${e.metrics.first_token_ms} ms · complète ${e.metrics.total_ms} ms · transcription ${e.metrics.stt_ms ?? "—"} ms`;
         break;
+      case "knowledge": refresh(); break;
       case "report": $("report-body").innerHTML = md(e.markdown); $("report").showModal(); break;
       case "reset": $("transcript").innerHTML = ""; $("suggestion").innerHTML = ""; $("question").textContent = ""; $("metrics").textContent = ""; break;
     }
@@ -165,7 +166,8 @@ function connect() {
 async function refresh() {
   const s = await (await fetch("/api/state")).json();
   setListening(s.listening);
-  $("kb").textContent = `${s.knowledge.documents.length} doc(s) · ${s.knowledge.chars.toLocaleString("fr-FR")} car.`;
+  $("kb").textContent = `${s.knowledge.documents.length} doc(s) · ${s.knowledge.chars.toLocaleString("fr-FR")} car.`
+    + (s.notion && s.notion.status !== "désactivé" ? ` · Notion : ${s.notion.status}` : "");
   if (s.error) toast(s.error);
 }
 

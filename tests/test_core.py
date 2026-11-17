@@ -171,3 +171,35 @@ def test_api(tmp_path):
             assert {"transcript", "suggestion_start", "suggestion_end"} <= seen
         r = client.post("/api/knowledge/upload", files={"file": ("notes.md", b"Kafka : streaming distribue", "text/markdown")})
         assert "notes.md" in r.json()["documents"]
+
+
+# ---------------------------------------------------------------- Notion
+def test_notion_import():
+    import httpx
+    from coach.notion_source import NotionSource, normalize_id
+
+    root, child, toggle = "a" * 32, "b" * 32, "c" * 32
+    rt = lambda s: [{"plain_text": s}]
+    pages = {
+        root: [{"id": "x1", "type": "heading_2", "has_children": False, "heading_2": {"rich_text": rt("Positionnement")}},
+               {"id": child, "type": "child_page", "has_children": True, "child_page": {"title": "6. AJIG"}}],
+        child: [{"id": "x2", "type": "paragraph", "has_children": False, "paragraph": {"rich_text": rt("12 modules, 15 à 20 min gagnées")}},
+                {"id": toggle, "type": "toggle", "has_children": True, "toggle": {"rich_text": rt("Question : la délégation ?")}}],
+        toggle: [{"id": "x3", "type": "bulleted_list_item", "has_children": False, "bulleted_list_item": {"rich_text": rt("Limite de 2 000 lignes")}}],
+    }
+    calls = {"n": 0}
+
+    def handler(req: httpx.Request):
+        calls["n"] += 1
+        parts = req.url.path.strip("/").split("/")
+        if calls["n"] == 1:
+            return httpx.Response(429, headers={"Retry-After": "0"})
+        if parts[1] == "pages":
+            return httpx.Response(200, json={"properties": {"title": {"type": "title", "title": rt("Mon CV décortiqué")}}})
+        return httpx.Response(200, json={"results": pages[parts[2]], "has_more": False})
+
+    src = NotionSource("t", client=httpx.Client(transport=httpx.MockTransport(handler)))
+    docs = src.fetch_tree(f"https://app.notion.com/p/{root}?pvs=204")
+    assert set(docs) == {"Notion — Mon CV décortiqué", "Notion — 6. AJIG"}
+    assert "Limite de 2 000 lignes" in docs["Notion — 6. AJIG"]
+    assert normalize_id("https://app.notion.com/p/40550329f195816a8e70d318ae45e855?pvs=204") == "40550329f195816a8e70d318ae45e855"
