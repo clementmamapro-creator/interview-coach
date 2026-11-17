@@ -216,3 +216,16 @@ def test_pinned_documents_in_system():
     system = eng._system("instructions")
     assert "Pourquoi Hubvisory" in system[1]["text"] and "DataSwipe" not in system[1]["text"]
     assert "DataSwipe" in eng._rag("airflow pipeline")
+
+
+def test_named_project_gets_full_fiche():
+    from coach.llm import ClaudeEngine
+
+    kb = KnowledgeBase()
+    kb.add_documents({"Notion — 1. SNCF GPT : assistant IA interne (RAG)": "Fiche SNCF GPT complète. " * 300,
+                      "Notion — 6. AJIG : copilote de comptes rendus": "AJIG 12 modules"})
+    assert kb.match_documents("Parle-moi de ton projet SNCF-GPT de A à Z") == ["Notion — 1. SNCF GPT : assistant IA interne (RAG)"]
+    eng = ClaudeEngine.__new__(ClaudeEngine)
+    eng.kb, eng.s = kb, Settings(max_context_chars=1000, rag_top_k=3)
+    ctx = eng._rag("Parle-moi de ton projet SNCF GPT en détail")
+    assert "<fiche_complete" in ctx and "AJIG" not in ctx

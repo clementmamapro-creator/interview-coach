@@ -26,6 +26,9 @@ Règles :
 compromis), vocabulaire du métier, aucune approximation.
 - Question comportementale : structure STAR condensée, appuyée sur le dossier.
 - Cas pratique ou question floue : propose d'abord une question de clarification à poser.
+- Demande de présentation détaillée d'un projet (« de A à Z », « en détail ») : garde le même format, \
+mais avec 5 à 7 puces qui suivent le fil besoin métier → architecture → ce que j'ai fait → difficulté \
+résolue → résultat chiffré → suite envisagée.
 - N'invente JAMAIS d'expérience, de diplôme ou de chiffre absent du dossier.
 - Si le dossier distingue ce qui est « réalisé » de ce qui est une « évolution » ou une « piste », \
 présente toujours une piste comme une idée (« la prochaine étape serait… »), jamais comme livrée.
@@ -106,12 +109,16 @@ class ClaudeEngine:
     def _rag(self, query: str) -> str:
         if self._use_full_context():
             return ""
-        hits = [c for c in self.kb.search(query, k=self.s.rag_top_k + 4) if c.source not in self.kb.pinned]
-        hits = hits[: self.s.rag_top_k]
-        if not hits:
-            return ""
-        body = "\n\n".join(f"[{c.source}]\n{c.text}" for c in hits)
-        return f"<extraits_dossier>\n{body}\n</extraits_dossier>\n\n"
+        # 1) projet cité nommément -> fiche complète
+        named = [n for n in self.kb.match_documents(query) if n not in self.kb.pinned]
+        parts = [f"<fiche_complete source=\"{n}\">\n{self.kb.documents[n]}\n</fiche_complete>" for n in named]
+        # 2) compléments par recherche BM25
+        hits = [c for c in self.kb.search(query, k=self.s.rag_top_k + 6)
+                if c.source not in self.kb.pinned and c.source not in named][: self.s.rag_top_k]
+        if hits:
+            body = "\n\n".join(f"[{c.source}]\n{c.text}" for c in hits)
+            parts.append(f"<extraits_dossier>\n{body}\n</extraits_dossier>")
+        return ("\n\n".join(parts) + "\n\n") if parts else ""
 
     async def stream_suggestion(self, question: str, turns: list, job_context: str) -> AsyncIterator[str]:
         system = self._system(LIVE_INSTRUCTIONS.format(name=self.s.candidate_name, job=_job_block(job_context)))

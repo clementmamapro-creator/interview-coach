@@ -136,6 +136,26 @@ class KnowledgeBase:
         scores.sort(reverse=True)
         return [self.chunks[i] for _, i in scores[:k]]
 
+    def match_documents(self, query: str, max_chars: int = 20000) -> list[str]:
+        """Documents dont le nom (ex. « 1. SNCF GPT : assistant… ») est cité dans la question.
+
+        Permet de fournir la fiche projet complète quand on demande « parle-moi de SNCF GPT de A à Z ».
+        """
+        q = set(tokenize(query))
+        found = []
+        for name in self.documents:
+            core = re.sub(r"^Notion — ", "", name).split(":")[0]
+            core_tokens = [t for t in tokenize(core) if not t.isdigit()]
+            if core_tokens and all(t in q for t in core_tokens):
+                found.append(name)
+        found.sort(key=lambda n: len(self.documents[n]))
+        out, total = [], 0
+        for n in found:
+            if total + len(self.documents[n]) <= max_chars:
+                out.append(n)
+                total += len(self.documents[n])
+        return out
+
     def summary(self) -> dict:
         return {"documents": list(self.documents), "chunks": len(self.chunks), "chars": self.total_chars,
                 "pinned": sorted(self.pinned)}
