@@ -14,6 +14,7 @@ import logging
 import sys
 import threading
 import time
+import warnings
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -44,7 +45,7 @@ class EnergyVAD:
         self,
         silence_ms: int = 800,
         min_speech_ms: int = 350,
-        max_utterance_s: float = 25.0,
+        max_utterance_s: float = 20.0,
         threshold_factor: float = 3.0,
         min_threshold: float = 0.006,
         preroll_ms: int = 300,
@@ -55,6 +56,7 @@ class EnergyVAD:
         self.threshold_factor = threshold_factor
         self.min_threshold = min_threshold
         self.noise_floor = 0.002
+        self.recent_rms: collections.deque = collections.deque(maxlen=int(3000 / FRAME_MS))  # 3 s
         self.preroll: collections.deque = collections.deque(maxlen=max(1, preroll_ms // FRAME_MS))
         self._reset()
 
@@ -72,7 +74,14 @@ class EnergyVAD:
     def process(self, frame: np.ndarray, t: float) -> Optional[tuple[np.ndarray, float, float]]:
         """Traite une trame ; renvoie (audio, début, fin) quand une prise de parole se termine."""
         rms = float(np.sqrt(np.mean(np.square(frame, dtype=np.float64))))
-        is_speech = rms > self.threshold
+        # Le bruit de fond = le niveau le plus bas des 3 dernières secondes (les pauses entre les mots).
+        # Ainsi un bruit constant (ventilateur, souffle du micro) n'est jamais pris pour de la parole.
+        self.recent_rms.append(rms)
+        if len(self.recent_rms) >= 10:
+            floor = min(self.recent_rms)
+            self.noise_floor = 0.8 * self.noise_floor + 0.2 * max(floor, 1e-4)
+        # échauffement : on mesure le bruit pendant ~0,5 s avant de détecter la parole
+        is_speech = len(self.recent_rms) >= 16 and rms > self.threshold
 
         if not self.in_speech:
             if is_speech:
@@ -82,8 +91,6 @@ class EnergyVAD:
                 self.silence_frames = 0
                 self.start_time = t - len(self.preroll) * FRAME_MS / 1000
             else:
-                # adaptation lente du plancher de bruit, uniquement hors parole
-                self.noise_floor = 0.97 * self.noise_floor + 0.03 * rms
                 self.preroll.append(frame)
             return None
 
@@ -180,19 +187,23 @@ class AudioSource(threading.Thread):
             device = self.device_getter()
             log.info("Capture %s sur : %s", self.speaker, device.name)
             last_level = 0.0
-            with device.recorder(samplerate=SAMPLE_RATE, blocksize=FRAME_LEN) as rec:
+            warnings.filterwarnings("ignore", message="data discontinuity")
+            block = FRAME_LEN * 4  # 120 ms par lecture : moins d'appels, plus de pertes d'audio
+            with device.recorder(samplerate=SAMPLE_RATE, blocksize=block * 2) as rec:
                 while not self.stop_event.is_set():
-                    data = rec.record(numframes=FRAME_LEN)
-                    frame = data.mean(axis=1) if data.ndim > 1 else data
-                    frame = frame.astype(np.float32)
+                    data = rec.record(numframes=block)
+                    mono = (data.mean(axis=1) if data.ndim > 1 else data).astype(np.float32)
                     now = time.time()
-                    res = self.vad.process(frame, now)
-                    if res is not None:
-                        audio, start, end = res
-                        self.on_utterance(Utterance(self.speaker, audio, start, end))
+                    n = len(mono) // FRAME_LEN
+                    for i in range(n):
+                        frame = mono[i * FRAME_LEN:(i + 1) * FRAME_LEN]
+                        res = self.vad.process(frame, now - (n - 1 - i) * FRAME_MS / 1000)
+                        if res is not None:
+                            audio, start, end = res
+                            self.on_utterance(Utterance(self.speaker, audio, start, end))
                     if self.on_level and now - last_level > 0.15:
                         last_level = now
-                        self.on_level(self.speaker, float(np.sqrt(np.mean(frame ** 2))))
+                        self.on_level(self.speaker, float(np.sqrt(np.mean(mono ** 2))))
         except Exception as exc:  # pragma: no cover - dépend du matériel
             self.error = str(exc)
             log.exception("Erreur de capture audio (%s)", self.speaker)

@@ -234,3 +234,15 @@ def test_named_project_gets_full_fiche():
     eng.kb, eng.s = kb, Settings(max_context_chars=1000, rag_top_k=3)
     ctx = eng._rag("Parle-moi de ton projet SNCF GPT en détail")
     assert "<fiche_complete" in ctx and "AJIG" not in ctx
+
+
+def test_vad_constant_background_noise():
+    """Bruit de fond constant au-dessus du seuil minimal : la fin de phrase doit quand même être détectée."""
+    vad = EnergyVAD(silence_ms=600, min_speech_ms=200)
+    rng = np.random.default_rng(1)
+    noise = lambda: (rng.standard_normal(FRAME_LEN) * 0.02).astype(np.float32)   # bruit ≈ 0.02 RMS
+    voice = lambda: (np.sin(np.linspace(0, 80, FRAME_LEN)) * 0.25 + rng.standard_normal(FRAME_LEN) * 0.02).astype(np.float32)
+    seq = [noise] * 100 + [voice] * 60 + [noise] * 40 + [voice] * 50 + [noise] * 40
+    out = [r for i, f in enumerate(seq) if (r := vad.process(f(), i * 0.03))]
+    assert len(out) == 2
+    assert all(len(a) <= 100 * FRAME_LEN for a, _, _ in out)  # ~2 s de voix, pas 20 s
