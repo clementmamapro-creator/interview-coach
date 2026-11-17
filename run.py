@@ -1,12 +1,31 @@
 """Point d'entrée : `python run.py` puis ouvrez http://127.0.0.1:8765"""
 import argparse
 import logging
+import shutil
+import subprocess
+import sys
 import threading
 import webbrowser
 
 import uvicorn
 
 from coach.config import load_settings
+
+
+def open_window(url: str) -> None:
+    """Ouvre l'interface comme une application (fenêtre Edge/Chrome sans barre d'adresse)."""
+    if sys.platform == "win32":
+        for exe in ("msedge", "chrome"):
+            try:
+                subprocess.Popen(f'start "" {exe} --app={url} --window-size=760,940', shell=True)
+                return
+            except Exception:
+                continue
+    for exe in ("google-chrome", "chromium", "microsoft-edge"):
+        if shutil.which(exe):
+            subprocess.Popen([exe, f"--app={url}", "--window-size=760,940"])
+            return
+    webbrowser.open(url)
 
 
 def main() -> None:
@@ -31,7 +50,7 @@ def main() -> None:
     app = create_app(settings)
     url = f"http://{settings.host}:{port}"
     if not args.no_browser:
-        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+        threading.Timer(1.5, open_window, args=(url,)).start()
     print(f"\n  Interview Coach démarré : {url}\n")
     uvicorn.run(app, host=settings.host, port=port, log_level="warning")
 

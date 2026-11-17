@@ -67,17 +67,24 @@ def create_app(settings: Optional[Settings] = None, engine=None, transcriber_fac
     notion_state = {"status": "désactivé", "documents": 0}
 
     async def load_notion() -> None:
-        roots = [r.strip() for r in settings.notion_pages.split(",") if r.strip()]
-        if not (settings.notion_token and roots):
+        split = lambda v: [r.strip() for r in v.split(",") if r.strip()]
+        roots, priority = split(settings.notion_pages), split(settings.notion_priority_pages)
+        if not (settings.notion_token and (roots or priority)):
             return
         from .notion_source import load_from_notion
 
         notion_state["status"] = "chargement…"
         await hub.emit({"type": "status", "text": "Import du dossier depuis Notion…"})
         try:
-            docs = await asyncio.to_thread(load_from_notion, settings.notion_token, roots)
-            kb.add_documents(docs)
-            notion_state.update(status="ok", documents=len(docs))
+            docs, prio = {}, {}
+            if priority:
+                prio = await asyncio.to_thread(load_from_notion, settings.notion_token, priority)
+                kb.add_documents(prio, pinned=True)
+            if roots:
+                docs = await asyncio.to_thread(load_from_notion, settings.notion_token, roots)
+                kb.add_documents({k: v for k, v in docs.items() if k not in prio})
+            docs = {**docs, **prio}
+            notion_state.update(status="ok", documents=len(docs), prioritaires=len(prio))
             await hub.emit({"type": "knowledge", **kb.summary()})
             await hub.emit({"type": "status", "text": f"Notion : {len(docs)} page(s) importée(s)"})
         except Exception as exc:

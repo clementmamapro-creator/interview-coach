@@ -203,3 +203,16 @@ def test_notion_import():
     assert set(docs) == {"Notion — Mon CV décortiqué", "Notion — 6. AJIG"}
     assert "Limite de 2 000 lignes" in docs["Notion — 6. AJIG"]
     assert normalize_id("https://app.notion.com/p/40550329f195816a8e70d318ae45e855?pvs=204") == "40550329f195816a8e70d318ae45e855"
+
+
+def test_pinned_documents_in_system():
+    from coach.llm import ClaudeEngine
+
+    kb = KnowledgeBase()
+    kb.add_documents({"fiche": "DataSwipe pipeline Airflow " * 400})
+    kb.add_documents({"Hubvisory": "Pourquoi Hubvisory : conseil produit"}, pinned=True)
+    eng = ClaudeEngine.__new__(ClaudeEngine)
+    eng.kb, eng.s = kb, Settings(max_context_chars=1000, rag_top_k=3)
+    system = eng._system("instructions")
+    assert "Pourquoi Hubvisory" in system[1]["text"] and "DataSwipe" not in system[1]["text"]
+    assert "DataSwipe" in eng._rag("airflow pipeline")

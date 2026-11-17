@@ -56,6 +56,7 @@ class Settings:
     # --- Notion (dossier candidat sans fichier local) ---
     notion_token: str = ""
     notion_pages: str = ""                     # URL(s) ou ID(s) de pages racines, séparés par des virgules
+    notion_priority_pages: str = ""            # pages toujours fournies en entier à Claude (ex. dossier de l'entretien du jour)
 
     # --- Chemins / serveur ---
     knowledge_dir: Path = ROOT / "knowledge"
@@ -86,5 +87,6 @@ def load_settings() -> Settings:
         rag_top_k=_int("RAG_TOP_K", Settings.rag_top_k),
         notion_token=os.getenv("NOTION_TOKEN", ""),
         notion_pages=os.getenv("NOTION_PAGES", ""),
+        notion_priority_pages=os.getenv("NOTION_PRIORITY_PAGES", ""),
         port=_int("PORT", Settings.port),
     )

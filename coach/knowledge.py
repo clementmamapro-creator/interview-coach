@@ -68,6 +68,7 @@ class KnowledgeBase:
     def __init__(self, directory: Path | None = None) -> None:
         self.directory = directory
         self.documents: dict[str, str] = {}
+        self.pinned: set[str] = set()          # documents toujours injectés en entier (ex. dossier de l'entretien du jour)
         self.chunks: list[Chunk] = []
         self._tf: list[Counter] = []
         self._df: Counter = Counter()
@@ -90,8 +91,10 @@ class KnowledgeBase:
         self.documents[name] = text
         self.index()
 
-    def add_documents(self, docs: dict[str, str]) -> None:
+    def add_documents(self, docs: dict[str, str], pinned: bool = False) -> None:
         self.documents.update(docs)
+        if pinned:
+            self.pinned.update(docs)
         self.index()
 
     def index(self) -> None:
@@ -105,8 +108,13 @@ class KnowledgeBase:
     def total_chars(self) -> int:
         return sum(len(t) for t in self.documents.values())
 
-    def full_text(self) -> str:
-        return "\n\n".join(f"### Document : {name}\n{text.strip()}" for name, text in self.documents.items())
+    def full_text(self, only_pinned: bool = False) -> str:
+        return "\n\n".join(f"### Document : {name}\n{text.strip()}" for name, text in self.documents.items()
+                           if not only_pinned or name in self.pinned)
+
+    @property
+    def pinned_chars(self) -> int:
+        return sum(len(t) for n, t in self.documents.items() if n in self.pinned)
 
     def search(self, query: str, k: int = 5, k1: float = 1.5, b: float = 0.75) -> list[Chunk]:
         terms = tokenize(query)
@@ -129,4 +137,5 @@ class KnowledgeBase:
         return [self.chunks[i] for _, i in scores[:k]]
 
     def summary(self) -> dict:
-        return {"documents": list(self.documents), "chunks": len(self.chunks), "chars": self.total_chars}
+        return {"documents": list(self.documents), "chunks": len(self.chunks), "chars": self.total_chars,
+                "pinned": sorted(self.pinned)}

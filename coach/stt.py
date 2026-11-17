@@ -97,6 +97,8 @@ class GroqTranscriber:
 
 
 def build_transcriber(settings: Settings) -> Transcriber:
-    if settings.stt_provider == "groq":
+    if settings.stt_provider == "groq" and not settings.groq_api_key:
+        log.warning("GROQ_API_KEY absente : bascule sur la transcription locale (faster-whisper)")
+    elif settings.stt_provider == "groq":
         return GroqTranscriber(settings.groq_api_key, settings.groq_model, settings.language)
     return FasterWhisperTranscriber(settings.whisper_model, settings.language, settings.whisper_device)

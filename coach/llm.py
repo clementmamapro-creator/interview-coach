@@ -90,9 +90,15 @@ class ClaudeEngine:
     def _system(self, instructions: str) -> list[dict]:
         blocks = [{"type": "text", "text": instructions}]
         if self._use_full_context():
+            text = self.kb.full_text()
+        elif self.kb.pinned:  # dossier trop gros : on garde en entier les documents prioritaires
+            text = self.kb.full_text(only_pinned=True)
+        else:
+            text = ""
+        if text:
             blocks.append({
                 "type": "text",
-                "text": f"<dossier_candidat>\n{self.kb.full_text()}\n</dossier_candidat>",
+                "text": f"<dossier_candidat>\n{text}\n</dossier_candidat>",
                 "cache_control": {"type": "ephemeral"},
             })
         return blocks
@@ -100,7 +106,8 @@ class ClaudeEngine:
     def _rag(self, query: str) -> str:
         if self._use_full_context():
             return ""
-        hits = self.kb.search(query, k=self.s.rag_top_k)
+        hits = [c for c in self.kb.search(query, k=self.s.rag_top_k + 4) if c.source not in self.kb.pinned]
+        hits = hits[: self.s.rag_top_k]
         if not hits:
             return ""
         body = "\n\n".join(f"[{c.source}]\n{c.text}" for c in hits)

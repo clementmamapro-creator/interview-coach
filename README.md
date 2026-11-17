@@ -50,7 +50,15 @@ coach/
 └── static/index.html  interface
 ```
 
-## Installation (Windows 10/11)
+## Installation express (Windows 10/11)
+
+1. Installez **Python 3.12** depuis python.org en cochant **« Add python.exe to PATH »**.
+2. Sur GitHub : **Code → Download ZIP**, puis décompressez (ou `git clone`).
+3. Double-cliquez **`install.bat`** (5 à 10 min). Le fichier `.env` s'ouvre : collez vos clés
+   (`ANTHROPIC_API_KEY`, `GROQ_API_KEY` gratuite sur console.groq.com, `NOTION_TOKEN`), enregistrez.
+4. Double-cliquez **`start.bat`** : l'outil s'ouvre dans sa propre fenêtre, comme une application.
+
+## Installation manuelle
 
 Prérequis : **Python 3.11 ou 3.12** ([python.org](https://www.python.org/downloads/), cochez « Add to PATH ») et Git.
 
