@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interview Coach</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36; --text: #e7e9ee; --muted: #8b93a7;
+    --accent: #6ea8fe; --me: #7dd3a8; --them: #f5b971; --danger: #f07178;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text);
+         height: 100vh; display: grid; grid-template-rows: auto auto 1fr auto; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; letter-spacing: .3px; }
+  .status { color: var(--muted); font-size: 13px; flex: 1; min-width: 200px; }
+  .meters { display: flex; gap: 10px; font-size: 12px; color: var(--muted); }
+  .meter { width: 70px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; }
+  .meter i { display: block; height: 100%; width: 0; transition: width .12s; }
+  #lvl-me i { background: var(--me); } #lvl-them i { background: var(--them); }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+           padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #0b1020; border-color: var(--accent); font-weight: 600; }
+  button.stop { background: var(--danger); border-color: var(--danger); color: #1a0b0d; }
+  .toolbar { display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; align-items: center; }
+  .toolbar label { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  details { width: 100%; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  textarea, input[type=text] { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--line);
+           border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; }
+  main { display: grid; grid-template-columns: minmax(280px, 2fr) 3fr; min-height: 0; }
+  #transcript { overflow-y: auto; padding: 14px 16px; border-right: 1px solid var(--line); }
+  .turn { margin-bottom: 10px; }
+  .turn .who { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }
+  .turn.me .who { color: var(--me); } .turn.them .who { color: var(--them); }
+  .turn .txt { white-space: pre-wrap; }
+  #suggestion-wrap { overflow-y: auto; padding: 16px 22px; position: relative; }
+  #question { color: var(--them); font-size: 14px; margin-bottom: 10px; }
+  #suggestion { font-size: 19px; line-height: 1.55; }
+  #suggestion ul { margin: 6px 0 10px; padding-left: 22px; }
+  #suggestion strong { color: var(--accent); }
+  #suggestion.blurred { filter: blur(7px); cursor: pointer; user-select: none; }
+  .hint { color: var(--muted); font-size: 13px; }
+  #metrics { color: var(--muted); font-size: 12px; margin-top: 14px; }
+  footer { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line); }
+  footer input { flex: 1; }
+  #toast { position: fixed; bottom: 70px; right: 16px; background: var(--danger); color: #1a0b0d; padding: 8px 12px;
+           border-radius: 8px; display: none; max-width: 420px; font-size: 13px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
+           width: min(900px, 92vw); max-height: 85vh; padding: 0; }
+  dialog .body { padding: 20px 26px; overflow-y: auto; max-height: calc(85vh - 60px); }
+  dialog .bar { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line); }
+  dialog h2 { color: var(--accent); font-size: 18px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎯 Interview Coach</h1>
+  <span class="status" id="status">Connexion…</span>
+  <span class="meters">
+    Moi <span class="meter" id="lvl-me"><i></i></span>
+    Interlocuteur <span class="meter" id="lvl-them"><i></i></span>
+  </span>
+</header>
+
+<div class="toolbar">
+  <button class="primary" id="btn-listen">▶ Écouter</button>
+  <button id="btn-sim">🎤 Question suivante (simulation)</button>
+  <button id="btn-suggest" title="Ctrl+Entrée">💡 Suggérer maintenant</button>
+  <button id="btn-report">📝 Rapport de session</button>
+  <button id="btn-reset">↺ Nouvelle session</button>
+  <label><input type="checkbox" id="coach-mode"> Mode coach (suggestion floutée, clic pour révéler)</label>
+  <label>📚 <span id="kb">—</span></label>
+  <button id="btn-upload">+ Ajouter un document</button>
+  <input type="file" id="file" accept=".md,.txt,.pdf" hidden>
+  <details>
+    <summary>Poste visé / offre / contexte de l'entretien</summary>
+    <textarea id="context" rows="4" placeholder="Ex. : AI Engineer chez … — stack Python, LLM, RAG, Azure. Collez ici l'offre d'emploi."></textarea>
+  </details>
+</div>
+
+<main>
+  <section id="transcript"><p class="hint">La transcription apparaîtra ici.<br>
+    Astuce : utilisez un casque pour que le micro ne capte pas la voix de l'interlocuteur.</p></section>
+  <section id="suggestion-wrap">
+    <div id="question"></div>
+    <div id="suggestion"><p class="hint">Les suggestions de réponse s'afficheront ici dès qu'une question est détectée.<br>
+      Pour tester sans audio : tapez une question en bas puis « Poser ».</p></div>
+    <div id="metrics"></div>
+  </section>
+</main>
+
+<footer>
+  <input type="text" id="input" placeholder="Tapez une question (recruteur) ou votre réponse…">
+  <button id="btn-ask">Poser (recruteur)</button>
+  <button id="btn-answer">Ma réponse</button>
+</footer>
+
+<div id="toast"></div>
+<dialog id="report"><div class="body" id="report-body"></div>
+  <div class="bar"><button id="btn-copy">Copier</button><button id="btn-close">Fermer</button></div></dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let listening = false, current = { id: null, text: "" };
+
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function md(src) {
+  const lines = esc(src).split("\n"); let html = "", inList = false;
+  const inline = (t) => t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>")
+                         .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>").replace(/_([^_]+)_/g, "<em>$1</em>");
+  for (const raw of lines) {
+    const l = raw.trimEnd(); const li = l.match(/^\s*[-*•]\s+(.*)/);
+    if (li) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { html += "</ul>"; inList = false; }
+    const h = l.match(/^(#{1,4})\s+(.*)/);
+    if (h) html += `<h${h[1].length + 1}>${inline(h[2])}</h${h[1].length + 1}>`;
+    else if (l.trim()) html += `<p>${inline(l)}</p>`;
+  }
+  return html + (inList ? "</ul>" : "");
+}
+function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = "none", 6000); }
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : null });
+  if (!r.ok) { toast((await r.text()).slice(0, 300)); return null; } return r.json();
+}
+function setListening(v) { listening = v; const b = $("btn-listen"); b.textContent = v ? "■ Arrêter" : "▶ Écouter"; b.className = v ? "stop" : "primary"; }
+function addTurn(t) {
+  const box = $("transcript"); if (box.querySelector(".hint")) box.innerHTML = "";
+  const d = document.createElement("div"); d.className = `turn ${t.speaker}`;
+  const who = t.speaker === "me" ? "Moi" : (t.simulated ? "Recruteur (simulé)" : "Interlocuteur");
+  d.innerHTML = `<div class="who">${who}</div><div class="txt">${esc(t.text)}</div>`;
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+function renderSuggestion() {
+  const el = $("suggestion"); el.innerHTML = md(current.text || "…");
+  if ($("coach-mode").checked && !current.revealed) el.classList.add("blurred"); else el.classList.remove("blurred");
+}
+
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { $("status").textContent = "Prêt"; refresh(); };
+  ws.onclose = () => { $("status").textContent = "Déconnecté — nouvelle tentative…"; setTimeout(connect, 1500); };
+  ws.onmessage = (m) => {
+    const e = JSON.parse(m.data);
+    switch (e.type) {
+      case "status": $("status").textContent = e.text; break;
+      case "listening": setListening(e.value); break;
+      case "error": toast(e.text); break;
+      case "level": $(`lvl-${e.speaker}`).firstElementChild.style.width = Math.min(100, e.value * 900) + "%"; break;
+      case "transcript": addTurn(e); break;
+      case "suggestion_start": current = { id: e.id, text: "", revealed: false }; $("question").textContent = "❓ " + e.question; renderSuggestion(); break;
+      case "suggestion_delta": if (e.id === current.id) { current.text += e.text; renderSuggestion(); } break;
+      case "suggestion_end":
+        if (e.metrics && e.metrics.first_token_ms != null)
+          $("metrics").textContent = `Latence moyenne : 1er mot ${e.metrics.first_token_ms} ms · complète ${e.metrics.total_ms} ms · transcription ${e.metrics.stt_ms ?? "—"} ms`;
+        break;
+      case "report": $("report-body").innerHTML = md(e.markdown); $("report").showModal(); break;
+      case "reset": $("transcript").innerHTML = ""; $("suggestion").innerHTML = ""; $("question").textContent = ""; $("metrics").textContent = ""; break;
+    }
+  };
+}
+async function refresh() {
+  const s = await (await fetch("/api/state")).json();
+  setListening(s.listening);
+  $("kb").textContent = `${s.knowledge.documents.length} doc(s) · ${s.knowledge.chars.toLocaleString("fr-FR")} car.`;
+  if (s.error) toast(s.error);
+}
+
+$("btn-listen").onclick = () => api(listening ? "/api/listen/stop" : "/api/listen/start");
+$("btn-sim").onclick = () => api("/api/simulate/next");
+$("btn-suggest").onclick = () => api("/api/suggest");
+$("btn-report").onclick = () => api("/api/report");
+$("btn-reset").onclick = () => api("/api/reset");
+$("context").onchange = () => api("/api/context", { job_context: $("context").value });
+$("suggestion").onclick = () => { current.revealed = true; renderSuggestion(); };
+$("coach-mode").onchange = renderSuggestion;
+const send = (path) => { const v = $("input").value.trim(); if (!v) return; $("input").value = ""; api(path, { text: v }); };
+$("btn-ask").onclick = () => send("/api/ask");
+$("btn-answer").onclick = () => send("/api/answer");
+$("input").onkeydown = (e) => { if (e.key === "Enter") send(e.shiftKey ? "/api/answer" : "/api/ask"); };
+document.addEventListener("keydown", (e) => { if (e.ctrlKey && e.key === "Enter") api("/api/suggest"); });
+$("btn-upload").onclick = () => $("file").click();
+$("file").onchange = async () => {
+  const f = $("file").files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f);
+  const r = await fetch("/api/knowledge/upload", { method: "POST", body: fd }); if (r.ok) refresh(); else toast("Échec de l'import");
+};
+$("btn-close").onclick = () => $("report").close();
+$("btn-copy").onclick = () => navigator.clipboard.writeText($("report-body").innerText);
+connect();
+</script>
+</body>
+</html>

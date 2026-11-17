@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+sessions/*
+!sessions/.gitkeep
+knowledge/*
+!knowledge/README.md
+!knowledge/exemple_fiche_projet.md
