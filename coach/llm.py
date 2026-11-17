@@ -59,6 +59,22 @@ Sois franc et précis : un rapport complaisant ne l'aide pas.
 {job}"""
 
 
+SUMMARY_INSTRUCTIONS = """À partir de la transcription d'un échange entre {name} et son interlocuteur, \
+rédige en français, en markdown :
+
+## Compte rendu de l'échange
+Date du jour, participants (« {name} » et « l'interlocuteur » si son nom n'est pas cité), objet, \
+puis les sujets abordés en 4 à 8 puces factuelles, les points forts mis en avant par {name}, \
+les questions ou points ouverts, et les prochaines étapes évoquées.
+
+## Email de suivi
+Objet + corps (8 à 12 lignes), ton professionnel et chaleureux, vouvoiement : remerciement, \
+2 ou 3 éléments précis de l'échange, rappel de la motivation, prochaine étape. Signé {name}.
+
+Reste strictement fidèle à la transcription : n'ajoute aucun fait, chiffre ou engagement qui n'y figure pas.
+{job}"""
+
+
 def _job_block(job_context: str) -> str:
     return f"\nPoste visé / contexte de l'entretien :\n{job_context.strip()}\n" if job_context.strip() else ""
 
@@ -72,6 +88,15 @@ def format_transcript(turns, last: int | None = None) -> str:
 class Engine(Protocol):
     def stream_suggestion(self, question: str, turns: list, job_context: str) -> AsyncIterator[str]: ...
     async def simulated_question(self, turns: list, job_context: str) -> str: ...
+    async def session_summary(self, turns: list, job_context: str) -> str:
+        msg = await self.client.messages.create(
+            model=self.s.live_model, max_tokens=2000,
+            system=[{"type": "text", "text": SUMMARY_INSTRUCTIONS.format(
+                name=self.s.candidate_name, job=_job_block(job_context))}],
+            messages=[{"role": "user", "content": f"<transcription>\n{format_transcript(turns)}\n</transcription>"}],
+        )
+        return "".join(b.text for b in msg.content if b.type == "text").strip()
+
     async def session_report(self, turns: list, job_context: str) -> str: ...
 
 
@@ -141,6 +166,15 @@ class ClaudeEngine:
         msg = await self.client.messages.create(
             model=self.s.live_model, max_tokens=200, system=system,
             messages=[{"role": "user", "content": f"Transcription jusqu'ici :\n{history}\n\nPose la question suivante."}],
+        )
+        return "".join(b.text for b in msg.content if b.type == "text").strip()
+
+    async def session_summary(self, turns: list, job_context: str) -> str:
+        msg = await self.client.messages.create(
+            model=self.s.live_model, max_tokens=2000,
+            system=[{"type": "text", "text": SUMMARY_INSTRUCTIONS.format(
+                name=self.s.candidate_name, job=_job_block(job_context))}],
+            messages=[{"role": "user", "content": f"<transcription>\n{format_transcript(turns)}\n</transcription>"}],
         )
         return "".join(b.text for b in msg.content if b.type == "text").strip()
 

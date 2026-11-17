@@ -31,6 +31,9 @@ class FakeEngine:
     async def session_report(self, turns, job_context):
         return "## Synthèse\nNote : 7/10"
 
+    async def session_summary(self, turns, job_context):
+        return "## Compte rendu de l'échange\n## Email de suivi"
+
 
 def make_session(tmp_path):
     events = []
@@ -118,6 +121,8 @@ def test_session_flow(tmp_path):
         await sess.simulate_next()
         await asyncio.sleep(0.05)
         md = await sess.report()
+        cr = await sess.summary()
+        assert "Email de suivi" in cr
         return sess, events, md
 
     sess, events, md = asyncio.run(scenario())

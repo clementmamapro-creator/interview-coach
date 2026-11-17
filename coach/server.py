@@ -170,6 +170,12 @@ def create_app(settings: Optional[Settings] = None, engine=None, transcriber_fac
         md = await session.report()
         return {"ok": True, "markdown": md}
 
+    @app.post("/api/summary")
+    async def summary():
+        guard()
+        md = await session.summary()
+        return {"ok": True, "markdown": md}
+
     @app.post("/api/reset")
     async def reset():
         await session.reset()

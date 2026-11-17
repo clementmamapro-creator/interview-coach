@@ -202,7 +202,18 @@ class SessionManager:
         await self.emit({"type": "status", "text": f"Rapport enregistré : {path.name}"})
         return md
 
-    def save(self, report_md: str = "") -> Path:
+    async def summary(self) -> str:
+        if not self.turns:
+            md = "_Aucun échange enregistré pour l'instant._"
+        else:
+            await self.emit({"type": "status", "text": "Rédaction du compte rendu…"})
+            md = await self.engine.session_summary(self.turns, self.job_context)
+        path = self.save(md, suffix="_compte-rendu")
+        await self.emit({"type": "report", "markdown": md, "path": str(path)})
+        await self.emit({"type": "status", "text": "Compte rendu prêt (bouton Copier)"})
+        return md
+
+    def save(self, report_md: str = "", suffix: str = "") -> Path:
         self.s.sessions_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
         base = self.s.sessions_dir / f"session_{stamp}"
@@ -211,9 +222,10 @@ class SessionManager:
             "turns": [asdict(t) for t in self.turns],
             "metrics": self.metrics.summary(),
         }, ensure_ascii=False, indent=2), encoding="utf-8")
+        md_path = base.parent / f"{base.name}{suffix}.md"
         if report_md:
-            base.with_suffix(".md").write_text(report_md, encoding="utf-8")
-        return base.with_suffix(".md")
+            md_path.write_text(report_md, encoding="utf-8")
+        return md_path
 
     async def reset(self) -> None:
         if self._suggest_task and not self._suggest_task.done():

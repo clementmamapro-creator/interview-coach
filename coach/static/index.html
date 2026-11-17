@@ -69,7 +69,8 @@
   <button class="primary" id="btn-listen">▶ Écouter</button>
   <button id="btn-sim">🎤 Question suivante (simulation)</button>
   <button id="btn-suggest" title="Ctrl+Entrée">💡 Suggérer maintenant</button>
-  <button id="btn-report">📝 Rapport de session</button>
+  <button id="btn-report">📝 Rapport de coaching</button>
+  <button id="btn-summary">✉️ Compte rendu + email</button>
   <button id="btn-reset">↺ Nouvelle session</button>
   <label><input type="checkbox" id="coach-mode"> Mode coach (suggestion floutée, clic pour révéler)</label>
   <label>📚 <span id="kb">—</span></label>
@@ -175,6 +176,7 @@ $("btn-listen").onclick = () => api(listening ? "/api/listen/stop" : "/api/liste
 $("btn-sim").onclick = () => api("/api/simulate/next");
 $("btn-suggest").onclick = () => api("/api/suggest");
 $("btn-report").onclick = () => api("/api/report");
+$("btn-summary").onclick = () => api("/api/summary");
 $("btn-reset").onclick = () => api("/api/reset");
 $("context").onchange = () => api("/api/context", { job_context: $("context").value });
 $("suggestion").onclick = () => { current.revealed = true; renderSuggestion(); };

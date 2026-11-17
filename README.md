@@ -20,6 +20,7 @@ Inspiré de l'architecture de [Natively](https://github.com/BrdgAI/Natively), r�
 | 🔁 **Anti-écho** | Si le micro capte la voix de l'interlocuteur sortant des haut-parleurs, le doublon est ignoré. |
 | 🎤 **Mode simulation** | Claude joue un recruteur technique exigeant, à partir de l'offre que vous collez. |
 | 🙈 **Mode coach** | Suggestion floutée : vous répondez d'abord, vous comparez ensuite. |
+| ✉️ **Compte rendu + email** | Résumé factuel de l'échange et email de suivi prêt à envoyer (recruteur, ami). |
 | 📝 **Rapport de session** | Note /10, analyse par question, meilleure réponse, notions à réviser, plan d'entraînement + métriques de latence. |
 
 ## Architecture
