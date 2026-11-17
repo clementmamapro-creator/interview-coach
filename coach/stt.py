@@ -83,7 +83,8 @@ class GroqTranscriber:
 
         if not api_key:
             raise RuntimeError("GROQ_API_KEY manquante dans .env")
-        self.client = httpx.Client(timeout=30, headers={"Authorization": f"Bearer {api_key}"})
+        self.client = httpx.Client(timeout=httpx.Timeout(12, connect=5),
+                                   headers={"Authorization": f"Bearer {api_key}"})
         self.model = model
         self.language = None if language == "auto" else language
 
@@ -91,8 +92,18 @@ class GroqTranscriber:
         data = {"model": self.model, "response_format": "json", "temperature": "0"}
         if self.language:
             data["language"] = self.language
-        r = self.client.post(self.URL, data=data, files={"file": ("audio.wav", to_wav_bytes(audio), "audio/wav")})
-        r.raise_for_status()
+        import httpx
+
+        wav = to_wav_bytes(audio)
+        for attempt in range(3):  # réseau instable : on retente avant d'abandonner la phrase
+            try:
+                r = self.client.post(self.URL, data=data, files={"file": ("audio.wav", wav, "audio/wav")})
+                r.raise_for_status()
+                break
+            except (httpx.TimeoutException, httpx.NetworkError):
+                if attempt == 2:
+                    raise
+                log.warning("Groq : délai dépassé, nouvelle tentative (%d/2)", attempt + 1)
         return clean_transcript(r.json().get("text", ""))
 
 
